@@ -5,6 +5,7 @@ import multer from "multer";
 // No filesystem interaction needed now
 import { File } from "openai/_shims/index.mjs";
 import OpenAI from "openai";
+import { ElevenLabsClient } from "elevenlabs";
 
 // Load environment variables from .env file if present
 dotenv.config();
@@ -17,6 +18,7 @@ app.use(cors());
 app.use(express.json());
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const elevenlabs = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY });
 
 // Multer config (store in memory)
 const upload = multer({ storage: multer.memoryStorage() });
@@ -77,6 +79,37 @@ app.post("/api/chat", async (req, res) => {
   } catch (error) {
     console.error("Chat completion error", error);
     return res.status(500).json({ error: "Chat completion failed" });
+  }
+});
+
+// NEW: Text-to-Speech endpoint
+app.post("/api/tts", async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text) {
+      return res.status(400).json({ error: "Text is required" });
+    }
+
+    // Generate audio stream from ElevenLabs
+    const audioStream = await elevenlabs.generate({
+      voice: process.env.ELEVENLABS_VOICE_ID || "21m00Tcm4TlvDq8ikWAM", // Rachel voice
+      model_id: "eleven_monolingual_v1",
+      text,
+    });
+
+    // Set appropriate headers for audio streaming
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Transfer-Encoding", "chunked");
+
+    // Pipe the audio stream to response
+    for await (const chunk of audioStream) {
+      res.write(chunk);
+    }
+    
+    res.end();
+  } catch (error) {
+    console.error("TTS error", error);
+    return res.status(500).json({ error: "TTS generation failed" });
   }
 });
 

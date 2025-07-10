@@ -3,7 +3,7 @@ import { ChatContainer } from './components/ChatContainer';
 import { VoiceButton } from './components/VoiceButton';
 import { StatusBar } from './components/StatusBar';
 import { useAudioRecorder } from './hooks/useAudioRecorder';
-import { useTextToSpeech } from './hooks/useTextToSpeech';
+import { useElevenLabsTTS } from './hooks/useElevenLabsTTS';
 import { getChatAIResponse } from './utils/chatAI';
 import { Message, VoiceState } from './types';
 
@@ -26,9 +26,8 @@ function App() {
   const {
     speak,
     isSpeaking,
-    stop: stopSpeaking,
-    isSupported: speechSynthesisSupported
-  } = useTextToSpeech();
+    stop: stopSpeaking
+  } = useElevenLabsTTS();
 
   // Update voice state based on hooks
   useEffect(() => {
@@ -83,9 +82,7 @@ function App() {
       setMessages(prev => [...prev, aiMessage]);
 
       // Speak the AI response
-      if (speechSynthesisSupported) {
-        speak(aiResponse);
-      }
+      await speak(aiResponse);
     } catch (error) {
       console.error('Error getting AI response:', error);
       setVoiceState(prev => ({ 
@@ -95,7 +92,7 @@ function App() {
     } finally {
       setVoiceState(prev => ({ ...prev, isProcessing: false }));
     }
-  }, [speak, speechSynthesisSupported, messages]);
+  }, [speak, messages]);
 
   const handleStartListening = useCallback(() => {
     if (isSpeaking) {
@@ -122,7 +119,7 @@ function App() {
     }
   }, [stopRecording, handleUserMessage]);
 
-  const isSupported = !!navigator.mediaDevices && speechSynthesisSupported;
+  const isSupported = !!navigator.mediaDevices;
 
   if (!isSupported) {
     return (
