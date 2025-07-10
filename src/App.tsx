@@ -152,13 +152,10 @@ function App() {
                 Mini Voice AI Assistant
               </h1>
               <p className="text-gray-600 mt-1">
-                Powered by OpenAI and ElevenLabs
+                STT by OpenAI, TSS by ElevenLabs, Web Search by DuckDuckGo 
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-500">
-                {messages.length} {messages.length === 1 ? 'message' : 'messages'}
-              </div>
             </div>
           </div>
         </div>

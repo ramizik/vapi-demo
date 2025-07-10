@@ -6,6 +6,7 @@ import multer from "multer";
 import { File } from "openai/_shims/index.mjs";
 import OpenAI from "openai";
 import { ElevenLabsClient } from "elevenlabs";
+import { performWebSearch, formatSearchResults } from "./utils/webSearch.js";
 
 // Load environment variables from .env file if present
 dotenv.config();
@@ -66,15 +67,79 @@ app.post("/api/chat", async (req, res) => {
         {
           role: "system",
           content:
-            "You are ChatGPT, an advanced, friendly, and knowledgeable AI assistant. Answer user queries in a natural, conversational manner—just like ChatGPT on openai.com. Be helpful, concise when appropriate, and feel free to ask clarifying questions if needed. Avoid unnecessary mentions that you’re an AI unless directly asked.",
+            "You are ChatGPT, an advanced, friendly, and knowledgeable AI assistant. Answer user queries in a natural, conversational manner—just like ChatGPT on openai.com. Be helpful, concise when appropriate, and feel free to ask clarifying questions if needed. Avoid unnecessary mentions that you're an AI unless directly asked. When you need current information or want to search for specific topics, use the web_search function.",
         },
         ...messages,
       ],
+      functions: [
+        {
+          name: "web_search",
+          description: "Search the web for current information, news, facts, or any topic the user asks about",
+          parameters: {
+            type: "object",
+            properties: {
+              query: {
+                type: "string",
+                description: "The search query to look up on the web"
+              },
+              max_results: {
+                type: "number",
+                description: "Maximum number of search results to return (default: 5)",
+                default: 5
+              }
+            },
+            required: ["query"]
+          }
+        }
+      ],
+      function_call: "auto",
       temperature: 0.7,
       max_tokens: 400,
     });
 
-    const text = completion.choices?.[0]?.message?.content?.trim();
+    const responseMessage = completion.choices[0].message;
+
+    // Check if the model wants to call a function
+    if (responseMessage.function_call) {
+      const functionName = responseMessage.function_call.name;
+      const functionArgs = JSON.parse(responseMessage.function_call.arguments);
+
+      if (functionName === "web_search") {
+        // Perform web search
+        const searchResults = await performWebSearch(
+          functionArgs.query,
+          functionArgs.max_results || 5
+        );
+
+        const formattedResults = formatSearchResults(searchResults);
+
+        // Send function result back to the model
+        const secondCompletion = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are ChatGPT, an advanced, friendly, and knowledgeable AI assistant. Answer user queries in a natural, conversational manner—just like ChatGPT on openai.com. Be helpful, concise when appropriate, and feel free to ask clarifying questions if needed. Avoid unnecessary mentions that you're an AI unless directly asked. When you need current information or want to search for specific topics, use the web_search function.",
+            },
+            ...messages,
+            responseMessage,
+            {
+              role: "function",
+              name: functionName,
+              content: formattedResults,
+            },
+          ],
+          temperature: 0.7,
+          max_tokens: 500,
+        });
+
+        const finalText = secondCompletion.choices?.[0]?.message?.content?.trim();
+        return res.json({ text: finalText });
+      }
+    }
+
+    const text = responseMessage?.content?.trim();
     return res.json({ text });
   } catch (error) {
     console.error("Chat completion error", error);
