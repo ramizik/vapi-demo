@@ -1,7 +1,9 @@
 # Voice AI Assistant Demo
 Ramis Hasanli for VAPI
 
-A simple yet powerful Voice AI Assistant built with React and Node.js that demonstrates real-time speech-to-text, AI conversation, and text-to-speech capabilities.
+A simple yet powerful Voice AI Assistant built with React and Node.js that demonstrates real-time speech-to-text, AI conversation, and text-to-speech capabilities.\
+\
+FIND ENV KEYS HERE: [https://docs.google.com/document/d/1Ylfshu9VdXFZn4IX80m5kX01XFoZNdl0A_VQmIIj_mc/edit?usp=sharing]
 
 ## 🎯 Project Overview
 
