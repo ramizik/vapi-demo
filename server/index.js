@@ -50,6 +50,36 @@ app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
   }
 });
 
+// NEW: Chat endpoint
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { messages } = req.body;
+    if (!Array.isArray(messages)) {
+      return res.status(400).json({ error: "messages array required" });
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are ChatGPT, an advanced, friendly, and knowledgeable AI assistant. Answer user queries in a natural, conversational manner—just like ChatGPT on openai.com. Be helpful, concise when appropriate, and feel free to ask clarifying questions if needed. Avoid unnecessary mentions that you’re an AI unless directly asked.",
+        },
+        ...messages,
+      ],
+      temperature: 0.7,
+      max_tokens: 400,
+    });
+
+    const text = completion.choices?.[0]?.message?.content?.trim();
+    return res.json({ text });
+  } catch (error) {
+    console.error("Chat completion error", error);
+    return res.status(500).json({ error: "Chat completion failed" });
+  }
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });

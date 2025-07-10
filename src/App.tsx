@@ -4,7 +4,7 @@ import { VoiceButton } from './components/VoiceButton';
 import { StatusBar } from './components/StatusBar';
 import { useAudioRecorder } from './hooks/useAudioRecorder';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
-import { getMockAIResponse } from './utils/mockAI';
+import { getChatAIResponse } from './utils/chatAI';
 import { Message, VoiceState } from './types';
 
 function App() {
@@ -69,8 +69,8 @@ function App() {
     setMessages(prev => [...prev, userMessage]);
 
     try {
-      // Get AI response (mock for now)
-      const aiResponse = await getMockAIResponse(message);
+      // Get AI response from backend
+      const aiResponse = await getChatAIResponse([ ...messages, userMessage ]);
       
       // Add AI message
       const aiMessage: Message = {
@@ -95,7 +95,7 @@ function App() {
     } finally {
       setVoiceState(prev => ({ ...prev, isProcessing: false }));
     }
-  }, [speak, speechSynthesisSupported]);
+  }, [speak, speechSynthesisSupported, messages]);
 
   const handleStartListening = useCallback(() => {
     if (isSpeaking) {
@@ -152,10 +152,10 @@ function App() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Voice AI Assistant
+                Mini Voice AI Assistant
               </h1>
               <p className="text-gray-600 mt-1">
-                Speak naturally and get intelligent responses
+                Powered by OpenAI and ElevenLabs
               </p>
             </div>
             <div className="flex items-center space-x-4">
