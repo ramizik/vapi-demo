@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ChatContainer } from './components/ChatContainer';
 import { VoiceButton } from './components/VoiceButton';
 import { StatusBar } from './components/StatusBar';
-import { useSpeechRecognition } from './hooks/useSpeechRecognition';
+import { useAudioRecorder } from './hooks/useAudioRecorder';
 import { useTextToSpeech } from './hooks/useTextToSpeech';
 import { getMockAIResponse } from './utils/mockAI';
 import { Message, VoiceState } from './types';
@@ -17,13 +17,11 @@ function App() {
   });
 
   const {
-    isListening,
-    transcript,
-    startListening,
-    stopListening,
-    error: speechError,
-    isSupported: speechSupported
-  } = useSpeechRecognition();
+    isRecording,
+    startRecording,
+    stopRecording,
+    error: recordingError
+  } = useAudioRecorder();
 
   const {
     speak,
@@ -36,18 +34,24 @@ function App() {
   useEffect(() => {
     setVoiceState(prev => ({
       ...prev,
-      isListening,
+      isListening: isRecording,
       isSpeaking,
-      error: speechError
+      error: recordingError
     }));
-  }, [isListening, isSpeaking, speechError]);
+  }, [isRecording, isSpeaking, recordingError]);
 
-  // Handle transcript when user stops speaking
-  useEffect(() => {
-    if (transcript && !isListening) {
-      handleUserMessage(transcript);
+  const transcribeAudio = async (audioBlob: Blob): Promise<string> => {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.webm');
+
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${apiBase}/api/transcribe`, { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to transcribe');
     }
-  }, [transcript, isListening]);
+    return data.text as string;
+  };
 
   const handleUserMessage = useCallback(async (message: string) => {
     if (!message.trim()) return;
@@ -98,14 +102,27 @@ function App() {
       stopSpeaking();
     }
     setVoiceState(prev => ({ ...prev, error: null }));
-    startListening();
-  }, [startListening, isSpeaking, stopSpeaking]);
+    startRecording();
+  }, [startRecording, isSpeaking, stopSpeaking]);
 
-  const handleStopListening = useCallback(() => {
-    stopListening();
-  }, [stopListening]);
+  const handleStopListening = useCallback(async () => {
+    const audioBlob = await stopRecording();
+    if (!audioBlob) return;
 
-  const isSupported = speechSupported && speechSynthesisSupported;
+    setVoiceState(prev => ({ ...prev, isProcessing: true }));
+
+    try {
+      const text = await transcribeAudio(audioBlob);
+      await handleUserMessage(text);
+    } catch (err) {
+      console.error(err);
+      setVoiceState(prev => ({ ...prev, error: 'Transcription failed' }));
+    } finally {
+      setVoiceState(prev => ({ ...prev, isProcessing: false }));
+    }
+  }, [stopRecording, handleUserMessage]);
+
+  const isSupported = !!navigator.mediaDevices && speechSynthesisSupported;
 
   if (!isSupported) {
     return (
